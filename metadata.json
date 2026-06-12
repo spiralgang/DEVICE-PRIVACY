@@ -1,0 +1,6 @@
+{
+  "name": "Privacy Simulator",
+  "description": "Simulates device spoofing and hardware identifier privacy controls using Gemini AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
