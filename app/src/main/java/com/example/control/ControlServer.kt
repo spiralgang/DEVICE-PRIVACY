@@ -228,7 +228,9 @@ class ControlServer(
             "URL" -> {
                 if (rest.isBlank()) return "usage: EDGE URL <base-url-or-chat-completions-url>"
                 repository.updateEdgeConfig(baseUrl = rest, preset = "CUSTOM")
-                "edge base url set\n" + edgeStatus()
+                val warn = if (!rest.trim().startsWith("https://", ignoreCase = true))
+                    "[WARN] non-HTTPS endpoint: your API key/prompts will be sent in cleartext.\n" else ""
+                warn + "edge base url set\n" + edgeStatus()
             }
             "MODEL" -> {
                 if (rest.isBlank()) return "usage: EDGE MODEL <model-id>"

@@ -90,8 +90,9 @@ object EdgeAssistant {
         val trimmed = baseUrl.trim()
         return when {
             trimmed.endsWith("/chat/completions") -> trimmed
-            trimmed.endsWith("/") -> trimmed + "v1/chat/completions"
+            trimmed.endsWith("/v1/") -> trimmed + "chat/completions"
             trimmed.endsWith("/v1") -> "$trimmed/chat/completions"
+            trimmed.endsWith("/") -> trimmed + "v1/chat/completions"
             else -> "$trimmed/v1/chat/completions"
         }
     }

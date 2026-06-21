@@ -28,9 +28,13 @@ object ShellRunner {
         val timedOut: Boolean
     )
 
-    private val SHELL = listOf("/system/bin/sh", "/system/bin/toybox sh", "sh")
-        .map { it.split(" ").first() }
-        .firstOrNull { File(it).exists() } ?: "sh"
+    /** Shell invocation prefix. toybox is only a shell when called as `toybox sh`, so the
+     *  fallback keeps the `sh` applet argument instead of dropping it. */
+    private val SHELL: List<String> = when {
+        File("/system/bin/sh").exists() -> listOf("/system/bin/sh")
+        File("/system/bin/toybox").exists() -> listOf("/system/bin/toybox", "sh")
+        else -> listOf("sh")
+    }
 
     suspend fun run(
         command: String,
@@ -39,7 +43,7 @@ object ShellRunner {
     ): Result = withContext(Dispatchers.IO) {
         if (!workDir.exists()) workDir.mkdirs()
         val start = System.currentTimeMillis()
-        val pb = ProcessBuilder(SHELL, "-c", command).directory(workDir)
+        val pb = ProcessBuilder(SHELL + listOf("-c", command)).directory(workDir)
         pb.environment().apply {
             put("HOME", workDir.absolutePath)
             put("TMPDIR", workDir.absolutePath)

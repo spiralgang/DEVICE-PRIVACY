@@ -93,6 +93,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Maps the recent chat (including sandbox shell transcripts) into API turns.
+     *  Shell output is folded in as a user turn so follow-ups can reference past runs. */
+    private fun recentTurns(): List<EdgeAssistant.Turn> =
+        _edgeMessages.value.takeLast(14).map { m ->
+            when (m.role) {
+                "assistant" -> EdgeAssistant.Turn("assistant", m.content)
+                "shell" -> EdgeAssistant.Turn("user", "[sandbox shell output]\n${m.content}")
+                else -> EdgeAssistant.Turn("user", m.content)
+            }
+        }
+
     /** Resolves the effective API key: explicit override, else the preset's BuildConfig key. */
     private fun resolveEdgeKey(config: EdgeConfig): String {
         if (config.apiKey.isNotBlank()) return config.apiKey
@@ -111,16 +122,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _edgeMessages.value = _edgeMessages.value + EdgeMessage("user", trimmed)
             try {
                 val config = edgeConfig.value
-                val turns = _edgeMessages.value
-                    .filter { it.role == "user" || it.role == "assistant" }
-                    .takeLast(12)
-                    .map { EdgeAssistant.Turn(it.role, it.content) }
                 var reply = EdgeAssistant.complete(
                     baseUrl = config.baseUrl,
                     model = config.model,
                     apiKey = resolveEdgeKey(config),
                     systemPrompt = config.systemPrompt,
-                    history = turns
+                    history = recentTurns()
                 )
                 _edgeMessages.value = _edgeMessages.value + EdgeMessage("assistant", reply)
 
@@ -132,24 +139,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         val res = ShellRunner.run(block.code, shellWorkDir)
                         _edgeMessages.value = _edgeMessages.value + EdgeMessage("shell", ShellRunner.transcript(res))
 
+                        // The shell transcript is already in recentTurns(); just add the instruction.
                         val feedback = EdgeAssistant.Turn(
                             "user",
-                            "I ran your shell block in the on-device sandbox. exit=${res.exitCode}.\n" +
-                                "stdout:\n${res.stdout.take(3000)}\n" +
-                                "stderr:\n${res.stderr.take(1500)}\n" +
+                            "That is the sandbox output of your shell block (exit ${res.exitCode}). " +
                                 "If it succeeded, confirm briefly. If it failed, reply with ONE corrected " +
                                 "shell code block and nothing else."
                         )
-                        val nextTurns = _edgeMessages.value
-                            .filter { it.role == "user" || it.role == "assistant" }
-                            .takeLast(12)
-                            .map { EdgeAssistant.Turn(it.role, it.content) } + feedback
                         reply = EdgeAssistant.complete(
                             baseUrl = config.baseUrl,
                             model = config.model,
                             apiKey = resolveEdgeKey(config),
                             systemPrompt = config.systemPrompt,
-                            history = nextTurns
+                            history = recentTurns() + feedback
                         )
                         _edgeMessages.value = _edgeMessages.value + EdgeMessage("assistant", reply)
                         if (res.exitCode == 0) break
