@@ -249,7 +249,9 @@ jobs:
             STAGE: {state}
             {STAGE_PROMPTS[state]}
 """
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    dirname = os.path.dirname(path)
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         f.write(body)
     LOG.info("emitted workflow YAML -> %s", path)
